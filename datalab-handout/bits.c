@@ -319,8 +319,8 @@ unsigned floatScale2(unsigned uf) {
 int floatFloat2Int(unsigned uf) {
   int sign = (uf >> 31) & 1;
   int e = ((uf >> 23) & 255) - 127;
-  int frac = (uf & ((1 << 23) -1)) | 0x800000;
-  if (sign && frac == 0x800000 && e == 31) return (1 << 31);
+  int frac = (uf & ((1 << 23) -1)) | (1 << 23);
+  if (sign && frac == (1 << 23) && e == 31) return (1 << 31);
   if (e >= 31) return 0x80000000u;
   else if(e < 0) return 0;
   else if(e > 23) frac <<= (e - 23);
