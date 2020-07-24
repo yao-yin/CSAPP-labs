@@ -226,8 +226,18 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  int sign = ((x >> 31) & 1) + (~ (y >> 31) & 1) + 1;
-   
+  int signx = ((x >> 31) & 1);
+  int signy = ((y >> 31) & 1);
+  /* case 1: x == y;
+     case 2: x < 0, y > 0;
+     case 3: same sign and x < y;
+  */
+  int case2 = signx & (!signy);
+  int sign = !(signx ^ signy);
+  int _mask = (0xFF << 8) + 0xFF;
+  int mask = (_mask << 15) | _mask;
+  int case3 = sign & ((((x&mask) + (~(y & mask)) + 1) >> 31) & 1);
+  return (!(x ^ y)) | case2 | case3;
 }
 //4
 /* 
@@ -256,7 +266,22 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int sign = (x >> 31);
+  /* x < 0 => sign: 111...111
+   * x >= 0 => sign: 0
+   */
+  x = (~sign & x) | (sign & (~x));
+  int b16 = (!!(x >> 16)) << 4;
+  x >>= b16;
+  int b8 = (!!(x >> 8)) << 3;
+  x >>= b8;
+  int b4 = (!!(x >> 4)) << 2;
+  x >>= b4;
+  int b2 = (!!(x >> 2)) << 1;
+  x >>= b2;
+  int b1 = (!!(x >> 1));
+  x >>= b1;
+  return b16 + b8 + b4 + b2 + b1 + x + 1;
 }
 //float
 /* 
@@ -271,7 +296,13 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  unsigned e = (uf >> 23) & 255;
+  unsigned sign = uf & (1 << 31);
+  if (e == 0) return sign | (uf << 1);
+  else if(e == 255) return uf;
+  else e ++;
+  unsigned mask = (0xFF) << 23;
+  return (uf & (~mask)) | (e << 23);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -286,7 +317,16 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  int sign = (uf >> 31) & 1;
+  int e = ((uf >> 23) & 255) - 127;
+  int frac = (uf & ((1 << 23) -1)) | 0x800000;
+  if (sign && frac == 0x800000 && e == 31) return (1 << 31);
+  if (e >= 31) return 0x80000000u;
+  else if(e < 0) return 0;
+  else if(e > 23) frac <<= (e - 23);
+  else frac >>= (23 - e);
+  if(!sign) return frac;
+  else return ~frac + 1;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -302,5 +342,17 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  if (x > 127) {
+    //INF
+    return 0xFFu << 23;
+  } else if (x < -150) {
+    // too small
+    return 0;
+  } else if (x >= -126) {
+    return (x + 127) << 23;
+  } else {
+    int shift = -x - 127;
+    return 1 << shift;
+  }
+  return 0;
 }
