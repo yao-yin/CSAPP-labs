@@ -391,15 +391,15 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig) 
 {
     int olderrno = errno;
-    //sigset_t mask, prev_mask;
-    //sigfillset(&mask);
-    //sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+    sigset_t mask, prev_mask;
+    sigfillset(&mask);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
     pid_t pid = fgpid(jobs);
     if (pid > 0 && kill(pid, sig) < 0) {
         sio_error("sigint_handler error");
     }
     errno = olderrno;
-    //sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
     return;
 }
 
@@ -411,15 +411,15 @@ void sigint_handler(int sig)
 void sigtstp_handler(int sig) 
 {
     int olderrno = errno;
-    //sigset_t mask, prev_mask;
-    //sigfillset(&mask);
-    //sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+    sigset_t mask, prev_mask;
+    sigfillset(&mask);
+    sigprocmask(SIG_BLOCK, &mask, &prev_mask);
     pid_t pid = fgpid(jobs);
     if (pid > 0 && kill(pid, sig) < 0) {
         sio_error("sigint_handler error");
     }
     errno = olderrno;
-    //sigprocmask(SIG_SETMASK, &prev_mask, NULL);
+    sigprocmask(SIG_SETMASK, &prev_mask, NULL);
     return;
 }
 
