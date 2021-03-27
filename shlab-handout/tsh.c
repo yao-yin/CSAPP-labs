@@ -178,8 +178,8 @@ void eval(char *cmdline)
         return;
     }
     if (!builtin_cmd(argv)) {
-        sigset_t mask_all, mask_one, prev_one;
-        sigfillset(&mask_all);
+        sigset_t mask_one, prev_one;
+        //sigfillset(&mask_all);
         sigemptyset(&mask_one);
         sigaddset(&mask_one, SIGCHLD);
         sigprocmask(SIG_BLOCK, &mask_one, &prev_one);
@@ -191,7 +191,7 @@ void eval(char *cmdline)
                 exit(0);
             }
         }
-        sigprocmask(SIG_BLOCK, &mask_all, NULL);
+        //sigprocmask(SIG_BLOCK, &mask_all, NULL);
         if (!bg) {
             addjob(jobs, pid, FG, cmdline);
             waitfg(pid);
@@ -395,7 +395,7 @@ void sigint_handler(int sig)
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &prev_mask);
     pid_t pid = fgpid(jobs);
-    if (pid > 0 && kill(pid, sig) < 0) {
+    if (pid > 0 && kill(-pid, sig) < 0) {
         sio_error("sigint_handler error");
     }
     errno = olderrno;
@@ -415,7 +415,7 @@ void sigtstp_handler(int sig)
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &prev_mask);
     pid_t pid = fgpid(jobs);
-    if (pid > 0 && kill(pid, sig) < 0) {
+    if (pid > 0 && kill(-pid, sig) < 0) {
         sio_error("sigint_handler error");
     }
     errno = olderrno;

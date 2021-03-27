@@ -49,6 +49,7 @@ team_t team = {
  */
 int mm_init(void)
 {
+    //mprintf("%d", SIZE_T_SIZE);
     return 0;
 }
 
