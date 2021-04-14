@@ -95,6 +95,8 @@ static void* extend_heap(size_t words)
  */
 static void *coalesce(void *bp) 
 {
+    int flag_curr = (bp == prev_fit);
+    int flag_next = (prev_fit == NEXT_BLKP(bp));
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
@@ -104,18 +106,12 @@ static void *coalesce(void *bp)
     }
     else if (prev_alloc && !next_alloc) {
         // case 2: coalesce with the next free block;
-        if (prev_fit == NEXT_BLKP(bp)) {
-            prev_fit = bp;
-        }
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
     }
     else if (!prev_alloc && next_alloc) {
         // case 3: coalesce with the prev free block;
-        if (prev_fit == bp) {
-            prev_fit = PREV_BLKP(bp);
-        }
         size += GET_SIZE((HDRP(PREV_BLKP(bp))));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
@@ -123,15 +119,13 @@ static void *coalesce(void *bp)
     }
     else {
         // case 4: coalesce with the prev free block and the next free block;
-        if (prev_fit == bp || prev_fit == NEXT_BLKP(bp)) {
-            prev_fit = PREV_BLKP(bp);
-        }
         size += GET_SIZE((HDRP(PREV_BLKP(bp))));
         size += GET_SIZE((HDRP(NEXT_BLKP(bp))));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
+    if (flag_curr || flag_next) prev_fit = bp;
     return bp;
 }
 
@@ -162,7 +156,7 @@ static void* find_fit(size_t asize)
     for (char *bp = prev_fit; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize)
         {
-            prev_fit = bp;
+            //prev_fit = bp;
             return bp;
         }
     }
@@ -170,7 +164,7 @@ static void* find_fit(size_t asize)
     {
         if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize)
         {
-            prev_fit = bp;
+            //prev_fit = bp;
             return bp;
         }
     }
