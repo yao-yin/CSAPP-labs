@@ -19,18 +19,24 @@ int build_requestHdrs(rio_t *rp, char *newreq, char *hostname);
 int main(int argc, char **argv)
 {
     int listenfd, connfd;
+    // portNumber, clientfd;
+    //TODO: set portNumber from command line
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
-    // check command line
+    /* Check command line args */
     if (argc != 2) {
-        fprintf(stderr, "usage: %s <port>\n", argv[0]);
-        exit(1);
+	    fprintf(stderr, "usage: %s <port>\n", argv[0]);
+	    exit(1);
     }
     listenfd = Open_listenfd(argv[1]);
     while (1) {
         clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
+        //connfd = Malloc(sizeof(int));
+        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+        Getnameinfo((SA *) &clientaddr, clientlen, hostname, MAXLINE, 
+            port, MAXLINE, 0);
+        printf("Accepted connection from(%s, %s)\n", hostname, port);
         proxyDoIt(connfd);
         Close(connfd);
     }
@@ -38,63 +44,39 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void proxyDoIt(int fd) 
+void proxyDoIt(int clientfd) 
 {
-    
-    // get GET request from client, send it to the target, save the response.
-    // int is_static;
-    // struct stat sbuf;
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE], requestHds[MAXLINE];
-    //char filename[MAXLINE], cgiargs[MAXLINE];
+    char method[MAXLINE], hostname[MAXLINE], port[MAXLINE], path[MAXLINE];
+    char uri[MAXLINE], version[MAXLINE];
+    char asClientBuf[MAXLINE];
     rio_t rioAsServer, rioAsClient;
-
-    // Read request line and headers
-    Rio_readinitb(&rioAsServer, fd);
-    if (!Rio_readlineb(&rioAsServer, buf, MAXLINE)) {
-        return;
-    }
-    printf("%s", buf);
-    sscanf(buf, "%s %s %s", method, uri, version);
-    if (strcmp(method, "GET")) {
-        clientError(fd, method, "501", "Not implemented",
-        "myProxy does not support this method.");
-        return;
-    }
-    
-    // Save all request headers
-    // Rio_readn(fd, requestHds, MAXLINE);
-    
-    // parse 
-    char target[MAXLINE], filePath[MAXLINE];
-    memset(target, 0, sizeof target);
-    memset(filePath, 0, sizeof filePath);
-    int port = -1;
-    parse_uri(uri, target, &port, filePath);
-    
-    // Connect to the target and then collect response.
-    char port_str[10];
-    sprintf(port_str, "%d", port);
+    rio_readinitb(&rioAsServer, clientfd);
     int asClientfd;
-
-    asClientfd = Open_clientfd(target, port_str);
-    
-    if (asClientfd < 0) {
-        printf("connected failed\n");
+    if (!Rio_readlineb(&rioAsServer, asClientBuf, MAXLINE)) {
         return;
     }
-
+    printf("%s", asClientBuf);
+    sscanf(asClientBuf, "%s %s %s", method, uri, version);
+    if (strcmp(method, "GET")) {
+        clientError(clientfd, method, "502", "Not implemented", "We only support GET method.");
+        return;
+    }
+    int portNumber = 0;
+    parse_uri(uri, hostname, &portNumber, path);
+    sprintf(port, "%d", portNumber);
+    asClientfd = Open_clientfd(hostname, port);
+    if (asClientfd < 0) {
+        printf("Connected failed.\n");
+        return;
+    }
     Rio_readinitb(&rioAsClient, asClientfd);
-    // Setup first line
     char newRequest[MAXLINE];
-    sprintf(newRequest, "GET %s HTTP/1.0\r\n", filePath);
-    build_requestHdrs(&rioAsServer, newRequest, target);
+    sprintf(newRequest, "GET %s HTTP/1.0\n", path);
+    build_requestHdrs(&rioAsServer, newRequest, hostname);
     Rio_writen(asClientfd, newRequest, strlen(newRequest));
-    
     int n = 0;
-    //char data[MAX_OBJECT_SIZE];
-    while ((n = Rio_readlineb(&rioAsClient, buf, MAXLINE))) {
-        printf("proxy received %d bytes,then send\n",n);
-        Rio_writen(fd, buf, n);
+    while ((n = Rio_readlineb(&rioAsClient, asClientBuf, MAXLINE)) > 0) {
+        Rio_writen(clientfd, asClientBuf, n);
     }
     Close(asClientfd);
 }

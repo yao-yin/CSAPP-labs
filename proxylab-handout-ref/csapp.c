@@ -1,9 +1,6 @@
 /* 
  * csapp.c - Functions for the CS:APP3e book
  *
- * Updated 10/2016 reb:
- *   - Fixed bug in sio_ltoa that didn't cover negative numbers
- *
  * Updated 2/2016 droh:
  *   - Updated open_clientfd and open_listenfd to fail more gracefully
  *
@@ -32,33 +29,33 @@
 void unix_error(char *msg) /* Unix-style error */
 {
     fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-    exit(0);
+   // exit(0);
 }
 /* $end unixerror */
 
 void posix_error(int code, char *msg) /* Posix-style error */
 {
     fprintf(stderr, "%s: %s\n", msg, strerror(code));
-    exit(0);
+   // exit(0);
 }
 
 void gai_error(int code, char *msg) /* Getaddrinfo-style error */
 {
     fprintf(stderr, "%s: %s\n", msg, gai_strerror(code));
-    exit(0);
+   // exit(0);
 }
 
 void app_error(char *msg) /* Application error */
 {
     fprintf(stderr, "%s\n", msg);
-    exit(0);
+   // exit(0);
 }
 /* $end errorfuns */
 
 void dns_error(char *msg) /* Obsolete gethostbyname error */
 {
     fprintf(stderr, "%s\n", msg);
-    exit(0);
+   // exit(0);
 }
 
 
@@ -238,18 +235,10 @@ static void sio_reverse(char s[])
 static void sio_ltoa(long v, char s[], int b) 
 {
     int c, i = 0;
-    int neg = v < 0;
-
-    if (neg)
-	v = -v;
-
+    
     do {  
         s[i++] = ((c = (v % b)) < 10)  ?  c + '0' : c - 10 + 'a';
     } while ((v /= b) > 0);
-
-    if (neg)
-	s[i++] = '-';
-
     s[i] = '\0';
     sio_reverse(s);
 }
@@ -900,8 +889,10 @@ ssize_t Rio_readn(int fd, void *ptr, size_t nbytes)
 {
     ssize_t n;
   
-    if ((n = rio_readn(fd, ptr, nbytes)) < 0)
+    if ((n = rio_readn(fd, ptr, nbytes)) < 0) {
 	unix_error("Rio_readn error");
+        return 0;
+    }
     return n;
 }
 
@@ -920,8 +911,10 @@ ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n)
 {
     ssize_t rc;
 
-    if ((rc = rio_readnb(rp, usrbuf, n)) < 0)
+    if ((rc = rio_readnb(rp, usrbuf, n)) < 0) {
 	unix_error("Rio_readnb error");
+        return 0;
+    }
     return rc;
 }
 
@@ -929,8 +922,10 @@ ssize_t Rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen)
 {
     ssize_t rc;
 
-    if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0)
+    if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0) {
 	unix_error("Rio_readlineb error");
+        return 0;
+    }
     return rc;
 } 
 
