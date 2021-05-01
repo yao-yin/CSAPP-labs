@@ -15,26 +15,33 @@ void clientError(int fd, char *cause, char *errnum,
 		 char *shortmsg, char *longmsg);
 void parse_uri(char *uri, char *target, int *port, char *filePath);
 int build_requestHdrs(rio_t *rp, char *newreq, char *hostname);
-
+void sigchld_handler(int sig);
+void *thread(void *vargp);
 int main(int argc, char **argv)
 {
-    int listenfd, connfd;
+    int listenfd;
+    int *connfd;
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
+    pthread_t tid;
     // check command line
     if (argc != 2) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
         exit(1);
     }
+    //Signal(SIGCHLD, sigchld_handler);
+    //signal(SIGPIPE, SIG_IGN);
     listenfd = Open_listenfd(argv[1]);
+    
     while (1) {
-        clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
-        proxyDoIt(connfd);
-        Close(connfd);
+        clientlen = sizeof(struct sockaddr_storage);
+        connfd = Malloc(sizeof(int)); 
+        *connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
+        Pthread_create(&tid, NULL, thread, connfd);
+        //Close(connfd);
     }
-    Close(listenfd);
+    //Close(listenfd);
     return 0;
 }
 
@@ -44,7 +51,7 @@ void proxyDoIt(int fd)
     // get GET request from client, send it to the target, save the response.
     // int is_static;
     // struct stat sbuf;
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE], requestHds[MAXLINE];
+    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     //char filename[MAXLINE], cgiargs[MAXLINE];
     rio_t rioAsServer, rioAsClient;
 
@@ -170,4 +177,20 @@ void clientError(int fd, char *cause, char *errnum,
     sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
     Rio_writen(fd, buf, strlen(buf));
     Rio_writen(fd, body, strlen(body));
+}
+
+void sigchld_handler(int sig) {
+    while (waitpid(-1, 0, WNOHANG) > 0)
+        ;
+    return;
+}
+
+void *thread(void *var) 
+{
+    int connfd = *((int *)var);
+    Pthread_detach(pthread_self());
+    Free(var);
+    proxyDoIt(connfd);
+    //Close(connfd);
+    return NULL;
 }
