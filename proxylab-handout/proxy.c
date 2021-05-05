@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "csapp.h"
+#include "cache.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -17,6 +18,7 @@ void parse_uri(char *uri, char *target, int *port, char *filePath);
 int build_requestHdrs(rio_t *rp, char *newreq, char *hostname);
 void sigchld_handler(int sig);
 void *thread(void *vargp);
+
 int main(int argc, char **argv)
 {
     int listenfd;
@@ -31,7 +33,8 @@ int main(int argc, char **argv)
         exit(1);
     }
     //Signal(SIGCHLD, sigchld_handler);
-    //signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);
+    init_cache();
     listenfd = Open_listenfd(argv[1]);
     
     while (1) {
@@ -42,6 +45,7 @@ int main(int argc, char **argv)
         //Close(connfd);
     }
     //Close(listenfd);
+    free_cache();
     return 0;
 }
 
@@ -68,6 +72,7 @@ void proxyDoIt(int fd)
         return;
     }
     
+    if (read_cache(uri, fd) == 1) return;
     // Save all request headers
     // Rio_readn(fd, requestHds, MAXLINE);
     
@@ -97,11 +102,18 @@ void proxyDoIt(int fd)
     build_requestHdrs(&rioAsServer, newRequest, target);
     Rio_writen(asClientfd, newRequest, strlen(newRequest));
     
-    int n = 0;
-    //char data[MAX_OBJECT_SIZE];
+    int n, size = 0;
+    char data[MAX_OBJECT_SIZE];
     while ((n = Rio_readlineb(&rioAsClient, buf, MAXLINE))) {
+        if (size < MAX_OBJECT_SIZE) {
+            memcpy(data+size, buf, n);
+            size += n;
+        }
         printf("proxy received %d bytes,then send\n",n);
         Rio_writen(fd, buf, n);
+    }
+    if (size < MAX_OBJECT_SIZE) {
+        write_cache(uri, data, size);
     }
     Close(asClientfd);
 }
@@ -141,7 +153,7 @@ int build_requestHdrs(rio_t *rp, char *newreq, char *hostname) {
     char buf[MAXLINE];
     int content_length = 0;
     while(Rio_readlineb(rp, buf, MAXLINE) > 0) {        
-	if (!strcmp(buf, "\r\n")) break;
+	    if (!strcmp(buf, "\r\n")) break;
         if (strstr(buf,"Host:") != NULL) continue;
         if (strstr(buf,"User-Agent:") != NULL) continue;
         if (strstr(buf,"Connection:") != NULL) continue;

@@ -40,7 +40,6 @@ void free_cache() {
 }
 
 int read_cache(char *url,int fd){
-    
     int tar = 0, i = 0;
     cache_type cur;
     cache_block *p;
@@ -58,12 +57,12 @@ int read_cache(char *url,int fd){
         printf("read cache fail\n");
         return 0;
     }
-    pthread_rwlock_rdlock(&p->rwlock);
-    if(strcmp(url,p->url) != 0){
-        pthread_rwlock_unlock(&p->rwlock);
-        return 0;
-    }
-    pthread_rwlock_unlock(&p->rwlock);
+    // pthread_rwlock_rdlock(&p->rwlock);
+    // if(strcmp(url,p->url) != 0){
+    //     pthread_rwlock_unlock(&p->rwlock);
+    //     return 0;
+    // }
+    // pthread_rwlock_unlock(&p->rwlock);
     if (!pthread_rwlock_trywrlock(&p->rwlock)) {
         p->time = currentTimeMillis();
         pthread_rwlock_unlock(&p->rwlock); 
@@ -81,7 +80,8 @@ void write_cache(char *url, char *data, int len){
     printf("write cache %s %d\n", url, tar);
     /* find empty block */
     cache_type cur = caches[tar];
-    cache_block *p = cur.cacheobjs, *pt;
+    cache_block *p = cur.cacheobjs;
+    cache_block *pt;
     int i;
     for(i=0;i < cur.size;i++,p++){
         if(p->time == 0){
